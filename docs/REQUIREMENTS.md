@@ -2,6 +2,21 @@
 
 Each requirement has an ID and the test that verifies it (traceability).
 
+## Mission and function description
+
+**Mission:** keep trains on a single line safely separated while letting them run as close together as is
+safe, so the line carries more trains.
+
+**Functions:**
+
+1. **Locate:** each train reports where it is and how fast it is going.
+2. **Authorise:** the zone controller (wayside) tells each train how far it may go (movement authority).
+3. **Enforce:** the onboard logic brakes in time to stay inside that limit and stops at stations.
+4. **Protect:** if the link is lost, the train stops on its own (emergency brake).
+5. **Verify:** every run is logged, checked automatically, and analysed for unusual behaviour.
+
+The functional and non-functional requirements below refine these functions into testable statements.
+
 ## Functional requirements
 
 | ID | Requirement | Verified by |
