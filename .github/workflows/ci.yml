@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Linux (GCC, POSIX sockets) + simulation run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (warnings are errors)
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j
+      - name: Unit, integration and stress tests
+        run: ctest --test-dir build --output-on-failure
+      - name: Run a scenario with a radio loss on train 3
+        run: ./build/cbtc_sim --trains 4 --radio-loss 3:300:304 --log run.csv
+      - name: Perl log report (and its own tests)
+        run: |
+          prove -v tools/t
+          perl tools/log_report.pl run.csv --junit log-report.xml
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - name: Data mining on the log (Isolation Forest) + train graph
+        run: |
+          pip install -r requirements.txt
+          python -m pytest -v analysis
+          python -m analysis.anomalies run.csv --out analysis_out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simulation-results
+          path: |
+            run.csv
+            log-report.xml
+            analysis_out/
+
+  thread-sanitizer:
+    name: ThreadSanitizer (data race check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cmake -S . -B build-tsan -DTSAN=ON -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build-tsan -j
+      - run: ctest --test-dir build-tsan --output-on-failure
+        env:
+          TSAN_OPTIONS: halt_on_error=1
+
+  windows:
+    name: Windows (MSVC, Winsock2)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (warnings are errors)
+        run: |
+          cmake -S . -B build
+          cmake --build build --config Release
+      - name: Tests
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Run a scenario
+        run: .\build\Release\cbtc_sim.exe --trains 4 --radio-loss 3:300:304 --log run.csv
+      - name: Perl log report (Strawberry Perl on the runner)
+        run: perl tools/log_report.pl run.csv

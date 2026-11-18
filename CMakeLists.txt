@@ -1,0 +1,38 @@
+cmake_minimum_required(VERSION 3.16)
+project(train_control_sim CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+find_package(Threads REQUIRED)
+
+if(WIN32)
+  # keep windows.h from defining min/max macros; allow sscanf in the CLI
+  add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
+endif()
+if(MSVC)
+  add_compile_options(/W4 /WX /permissive- /EHsc)
+else()
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
+
+option(TSAN "Build with ThreadSanitizer" OFF)
+if(TSAN)
+  add_compile_options(-fsanitize=thread -g -O1)
+  add_link_options(-fsanitize=thread)
+endif()
+
+add_library(cbtc src/net.cpp src/zone_controller.cpp src/simulation.cpp)
+target_include_directories(cbtc PUBLIC src)
+target_link_libraries(cbtc PUBLIC Threads::Threads)
+if(WIN32)
+  target_link_libraries(cbtc PUBLIC ws2_32)
+endif()
+
+add_executable(cbtc_sim src/main.cpp)
+target_link_libraries(cbtc_sim PRIVATE cbtc)
+
+enable_testing()
+foreach(t test_control test_protocol test_simulation)
+  add_executable(${t} tests/${t}.cpp)
+  target_link_libraries(${t} PRIVATE cbtc)
+  add_test(NAME ${t} COMMAND ${t})
+endforeach()

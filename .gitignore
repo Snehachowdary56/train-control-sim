@@ -1,0 +1,6 @@
+build*/
+analysis_out/
+__pycache__/
+.pytest_cache/
+*.csv
+log-report.xml
